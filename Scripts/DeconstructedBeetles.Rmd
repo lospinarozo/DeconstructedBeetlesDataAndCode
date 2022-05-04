@@ -22,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-# Libraries
+Libraries
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -40,7 +40,7 @@ library(matrixStats)
 
 ```
 
-# Data Sets
+Data Sets
 
 ```{r message=FALSE, warning=FALSE}
 

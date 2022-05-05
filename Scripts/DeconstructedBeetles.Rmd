@@ -208,9 +208,367 @@ ggplot(data=Transmicro, aes(wl,Transm,spp))+
 
 <br> <br>
 
+# Statistical Descriptors
+
+## Calculations
+
+### Cylinder diameters
+
+```{r}
+
+Cylinders <- 
+  Cylinders %>% 
+  mutate(MajorAxisnm = MajorAxis * 1000, # from microns to nm
+         MinorAxisnm = MinorAxis * 1000) # from microns to nm
+
+# Prepare for the plot
+HistAxis<-
+  Cylinders %>% 
+  select (MajorAxisnm, MinorAxisnm ) %>% 
+  gather (Axis, Length) 
+
+# Plot
+ggplot(HistAxis, aes(x=Length, fill=Axis, color=Axis))+
+  geom_histogram(fill="gray", alpha=0.3, 
+                 position="identity", binwidth=25)+
+  theme_bw()+
+  theme(legend.position="top")+
+  ylab("Counts")+
+  xlab("Cylinder Diameter (nm)")+ 
+  theme(legend.position = c(0.8,0.5))+
+  theme(legend.title = element_blank())+
+  theme(legend.text = element_text(size=7))+
+  scale_color_manual(labels = c("Major axis", "Minor axis"),
+                     values=c("#8dbb53", "#b39eff")) +
+  theme(legend.key.size = unit(0.4, 'cm'))
+
+```
+
+### Centroid distances
+
+The software provides the centroid distances as the x and y position in the image for each particle, in micrometers. To calculate the centre to centre distance, it is necesary to use the formula for euclidian distances
+
+```{r}
+
+Centroids <- 
+  Centroids %>% 
+  # Calculate euclidean distance:
+  mutate(Euclidean = sqrt(((x1-x)^2)+((y2-y)^2))) %>% 
+  # convert from microns to nm
+  mutate(Euclideannm = Euclidean * 1000)
+
+# Plot:
+ggplot(Centroids, aes(x=Euclideannm))+
+  geom_histogram( color="#ffd781" ,fill="#ffd781", alpha=0.3,
+                  position="identity",binwidth=50)+
+  theme_bw()+
+  theme(legend.position="top")+
+  ylab("Counts")+
+  xlab("Centre - Centre Distance (nm)")+ 
+  theme(legend.position = c(0.8,0.5))+
+  theme(legend.title = element_blank())+
+  theme(legend.text = element_text(size=6))
+
+```
+
+### Circularity
+
+This parameter indicates how circular are the particles. When the circularity is closer to 1, this means that the relationship between area and perimeter is close to 1, so the particle has a regular perimeter
+
+```{r}
+
+# Plot:
+ggplot(Cylinders, aes(x=circ.)) +
+  geom_histogram( color="#0e0928" ,fill="#93c7ff", alpha=0.5,
+                  position="identity")+
+  theme_bw()+
+  theme(legend.position="top")+
+  ylab("Counts")+
+  xlab("Circularity (4π*area/perimeter^2)")+ 
+  scale_x_continuous(breaks=seq(0,1,0.2))+
+  theme(legend.position = c(0.8,0.5))+
+  theme(legend.title = element_blank())+
+  theme(legend.text = element_text(size=6))
+
+```
+
+### Aspect ratio
+
+Major Axis/minor Axis
+
+If this value is far away from 1, it means that the elipse is flattened. if close to 1, it means that the ellipse is close to a circle.
+
+```{r}
+
+# Plot:
+ggplot(Cylinders, aes(x=AR)) +
+  geom_histogram( color="#0e0928" ,fill="#93c7ff", alpha=0.5,
+                  position="identity")+
+  theme_bw()+
+  theme(legend.position="top")+
+  ylab("Counts")+
+  xlab("Aspect Ratio (Major Axis/Minor Axis")+ 
+  theme(legend.position = c(0.8,0.5))+
+  theme(legend.title = element_blank())+
+  theme(legend.text = element_text(size=6))
+
+```
+
+### Angle
+
+This parameter indicates varies between 0-180 degrees, and it is the angle between the primary axis and a line parallel to the x-axis of the image.
+
+```{r}
+
+# Plot:
+ggplot(Cylinders, aes(x=angle)) +
+  geom_histogram( color="#0e0928" ,fill="#93c7ff", alpha=0.5,
+                  position="identity")+
+  theme_bw()+
+  theme(legend.position="top")+
+  ylab("Counts")+
+  xlab("Angle (ellipse axis to the image x axis)")+ 
+  scale_x_continuous(breaks=seq(0,180,20))+
+  theme(legend.position = c(0.8,0.5))+
+  theme(legend.title = element_blank())+
+  theme(legend.text = element_text(size=6))
+
+```
+
+### Correlations
+
+We evaluated the correlation between the centre to centre distance and the diameter
+
+First we need to create unique codes for the particles including the TEM number, the rectangle number and the ROI number.
+
+In this way, we can combine the two data frames, cylinders diameter and centre to centre distance. Thus, for each particle we will obtain its diameter and its centre-to-centre distance to *one* of its adjacent particles.
+
+```{r message=FALSE, warning=FALSE}
+
+Cylinders2 <-
+  Cylinders %>% 
+  unite("ROICode",c("section","rectangle","ROI")) %>% 
+  select(ROICode,MajorAxisnm,MinorAxisnm)
+
+Centroids2 <-
+  Centroids %>%
+  mutate(label2 = substr(label,16,18)) %>% 
+  unite("ROICode",c("label2","ROI"),remove=FALSE) %>% 
+  unite("ROICompCode",c("label2","ROIcomp"),remove=FALSE) %>% 
+  select(ROICode,ROICompCode,Euclideannm) %>% 
+  # order:
+  arrange(ROICompCode) %>% 
+  #remove particles that do not have diameter info:
+  filter(ROICompCode!="1_4_17") 
+
+StructStats <- 
+  Cylinders2 %>% 
+  # select the ROIs for which we have the centroid distances:
+  filter (ROICode  %in% (Centroids2$ROICompCode)) %>% 
+  # order:
+  arrange(ROICode) %>% 
+  # Join data frames: cylinders with Centroids 
+  bind_cols(.,Centroids2) %>% 
+  select(-ROICode...1) %>% 
+  rename(AdjROI = ROICode...4) %>% 
+  select(4,1,2,3,5) %>% 
+  filter(MajorAxisnm<1400)
+
+head(StructStats)
+```
+
+In this data frame, the first column is the label of the particles (i.e. transversal section of a cylinder in the white underlay of X. eucalypti) that we are studying. Second column and third column are the diameter. Since the particles are an ellipse, we kept the major and minor axis. Column 4 is the the label of a particle adjacent to the particle in column 1. Column 5 is the centre to centre distance between these two particles.
+
+Now we can test if the diameter of the particle correlates to the centre to centre distance.
+
+```{r}
+cor.test(StructStats$MajorAxisnm,StructStats$Euclideannm)
+
+ggplot(StructStats, aes(x = Euclideannm))+
+  geom_point(aes(x = Euclideannm,y = MajorAxisnm),
+             size=3, alpha=0.5,pch=21,
+             col="black",fill="#93c7ff")+
+  geom_point(aes(x = Euclideannm,y = MinorAxisnm),
+             size=3, alpha=0.5,pch=21,
+             col="black",fill="#f8f813")+
+  theme_bw()+
+  xlab("Centre-centre distance (nm)")+
+  ylab("Diameter of particles (nm)")+
+  scale_x_continuous(breaks=seq(500,1500,200))+
+  scale_y_continuous(breaks=seq(400,1400,200))+
+  geom_hline(yintercept=mean(StructStats$MajorAxisnm), 
+             linetype="dashed", color = "#0e0928")+
+  geom_hline(yintercept=mean(StructStats$MinorAxisnm), 
+             linetype="dashed", color = "#abab0d")
+  
+```
+
+Blue = major axis and yellow = minor axis
+
+One last test, can the sum of the dimeter/2 of two adjacent particles explain its centre to centre distance? 
+
+```{r}
+SubCylind <-
+  Cylinders2 %>% 
+  filter (ROICode  %in% (StructStats$AdjROI)) 
+
+StructStats$MajAxisAdj <- SubCylind$MajorAxisnm [factor(StructStats$AdjROI)]
+
+StructStats$MinAxisAdj <- SubCylind$MinorAxisnm [factor(StructStats$AdjROI)]
+
+StructStats <-
+  StructStats %>% 
+  mutate(SumMajAxis = MajorAxisnm/2 + MajAxisAdj/2) %>% 
+  mutate(SumMinAxis = MinorAxisnm/2 + MinAxisAdj/2) 
+  
+
+```
+
+```{r}
+ModEucAxis <- lm (StructStats$Euclideannm ~ StructStats$SumMajAxis + StructStats$SumMinAxis)
+
+summary(ModEucAxis)
+
+ggplot(StructStats, aes(x = Euclideannm))+
+  geom_point(aes(x = Euclideannm,y = SumMajAxis),
+             size=3, alpha=0.5,pch=21,
+             col="black",fill="#93c7ff")+
+  geom_point(aes(x = Euclideannm,y = SumMinAxis),
+             size=3, alpha=0.5,pch=21,
+             col="black",fill="#f8f813")+
+  theme_bw()+
+  xlab("Centre-centre distance (nm)")+
+  ylab("Sum of r for adjacent particles (nm)")+
+  scale_x_continuous(breaks=seq(500,1500,200))+
+  geom_hline(yintercept=mean(StructStats$SumMajAxis), 
+             linetype="dashed", color = "#0e0928")+
+  geom_hline(yintercept=mean(StructStats$SumMinAxis), 
+             linetype="dashed", color = "#abab0d")
+  
+```
+
+
+
+## Results
+
+
+Table with the statistical descriptors of the cylinders in the Xylonichus white underlay structures
+
+<br>
+<br>
+
+```{r eval}
+
+maxA<- round(c(
+mean(Cylinders$MajorAxisnm),
+sd(Cylinders$MajorAxisnm),
+quantile(Cylinders$MajorAxisnm, c(0.25,0.75)),
+length(Cylinders$MajorAxisnm)),2)
+
+minA <- round(c(
+mean(Cylinders$MinorAxisnm),
+sd(Cylinders$MinorAxisnm),
+quantile(Cylinders$MinorAxisnm, c(0.25,0.75)),
+length(Cylinders$MinorAxisnm)),2)
+
+cent <- round(c(
+mean(Centroids$Euclideannm),
+sd(Centroids$Euclideannm),
+quantile(Centroids$Euclideannm, c(0.25,0.75)),
+length(Centroids$Euclideannm)),2)
+
+Ecir <- round(c(
+mean(Cylinders$circ.),
+sd(Cylinders$circ.),
+quantile(Cylinders$circ., c(0.25,0.75)),
+length(Cylinders$circ.)),2)
+
+ARat <- round(c(
+mean(Cylinders$AR),
+sd(Cylinders$AR),
+quantile(Cylinders$AR, c(0.25,0.75)),
+length(Cylinders$AR)),2)
+
+# For the angles change the reference system
+# Either the elypse is aligned with the horizontal
+# Or it is aligned with the normal of the elytron
+# angle should take values only between 0 and 90
+Angs1 <- Cylinders$angle[Cylinders$angle<90] #less than 90
+Angs2 <- 180-(Cylinders$angle[Cylinders$angle>90])# >90, invert
+Angs3 <- c(Angs1,Angs2) # join them again
+Angl <- round(c(
+mean(Angs3),
+sd(Angs3),
+quantile(Angs3, c(0.25,0.75)),
+length(Angs3)),2)
+
+```
+
+<br> 
+<br>
+
+|Parameter|Mean|sd|25% quantile|75% quantile|n|
+|:-----------:|:---------:|:---------:|:---------:|:---------:|:---------:|
+|Ellipse Major axis |`r maxA[1]`|`r maxA[2]`|  `r maxA[3]`  |`r maxA[4]`|`r maxA[5]`|
+|Ellipse Minor axis |`r minA[1]`|`r minA[2]`|  `r minA[3]`  |`r minA[4]`|`r minA[5]`|
+|Aspect Ratio       |`r ARat[1]`|`r ARat[2]`|  `r ARat[3]`  |`r ARat[4]`|`r ARat[5]`|
+|Centre-Centre      |`r cent[1]`|`r cent[2]`|  `r cent[3]`  |`r cent[4]`|`r cent[5]`|
+|Circularity        |`r Ecir[1]`|`r Ecir[2]`|  `r Ecir[3]`  |`r Ecir[4]`|`r Ecir[5]`|
+|Angle              |`r Angl[1]`|`r Angl[2]`|  `r Angl[3]`  |`r Angl[4]`|`r Angl[5]`|
+
+<br>
+<br>
+
+* The particles are ellipses in which the aspect ratio is ~1.6 which means the major axis is ~1.6 times the minor axis.  
+
+* There is no correlation between the major/minor axis of the ellipses and the centre to centre distance. This is because the particles are not perfectly circular and the spacing between ellipses is determined by the chitin matrix (which varies considerably). 
+
+* The particles are often at angles. Their major axis can vary between 0 and 30 degrees from the horizontal of the image. This means that if we model the cross section of the cylinders as  ellipses, the major axis of those ellipses will often align with the ventral surface of the elytron and almost never with the normal to the elytron.
+
+
+<br>
+<br>
+<br>
+
+## Procedure 
+
+This is a short description of the procedure I used to extract the centre to centre distance and the diameter of the transversal section of the cylinders from the TEM images
+
+Here I refer as "particle" to the circle correspondent to a transversal section of a cylinder in the structure. Cylinders are filled with air and surrounded by a matrix of chitin. 
+
+
+```{r echo=FALSE, fig.cap="One rectangle of one TEM section", out.width = '50%', out.height='40%'}
+knitr::include_graphics("../Images/TEMexample.JPG")
+```
+
+Then, we used the plugin Analyze particles in Image J to obtain  statistical descriptors for the shapes of the transversal sections of the cylinders. 
+
+To do this we convert the image to black and white, then apply a threshold: 
+
+```{r echo=FALSE, fig.cap="Example of a threshold to identify particles", out.width = '50%', out.height='40%'}
+knitr::include_graphics("../Images/ThresholdExample.JPG")
+```
+
+Then, the plugin assigns a number to each particle, fits an ellipse to each particle and outputs the basic stats. 
+
+```{r echo=FALSE, fig.cap="Example of the numbers assigned to each particle in the area (each particle is also refered as the region of interes, ROI)", out.width = '50%', out.height='40%'}
+knitr::include_graphics("../Images/ParticlesExample.JPG")
+```
+
+Note: Although it is not shown here, the procedure also includes two extra steps to remove particles that are too small and probably just artifacts. 
+
+<br>
+
+
+
+
 # Models
 
+## Current
+
 Photonic crystal
+
+We are comparing models in which the cylinders transversal section is a circle of diameter 700, 820 and 1000 nm in two polariations: incident light polarized parallel (continuous) and perpendicular (dashed) to the cylinder axis
 
 ```{r}
 
@@ -262,6 +620,8 @@ M1P <- ggplot(OrderModel, aes(x=wl, y = Reflectance,
 
 Quasi-ordered model
 
+The plot shows the probability of reflectance of light inciding perpendicular to the cylinder axis 
+
 ```{r}
 
 PlotM1 <- 
@@ -303,7 +663,7 @@ M2P <- ggplot(PlotM1Means, aes(x=wl)) +
 
 ```
 
-## Contrast between the two models
+Contrast between the two models
 
 ```{r warning=FALSE}
 
@@ -313,250 +673,27 @@ plot_grid(M1P, M2P,
 
 ```
 
-# Statistical Descriptors
-
-Table with the statistical descriptors of the cylinders in the Xylonichus white underlay structures
-
-Here we refer as "particle" to the clear circle in a matrix in a transversal section: 
-
-
-```{r echo=FALSE, fig.cap="One rectangle of one TEM section", out.width = '50%', out.height='50%'}
-knitr::include_graphics("../Images/TEMexample.JPG")
-```
-
-Then, we used the plugin Analyze particles in Image J to obtain  statistical descriptors for the shapes of the transversal sections of the cylinders. 
-
-To do this we convert the image to black and white, then apply a threshold: 
-
-```{r echo=FALSE, fig.cap="Example of a threshold to identify particles", out.width = '50%', out.height='50%'}
-knitr::include_graphics("../Images/ThresholdExample.JPG")
-```
-
-Then, the plugin assigns a number to each particle, fits an elypse to each particle and outputs the basic stats. 
-
-```{r echo=FALSE, fig.cap="Example of the numbers assigned to each particle in the area (each particle is also refered as the region of interes, ROI)", out.width = '50%', out.height='50%'}
-knitr::include_graphics("../Images/ParticlesExample.JPG")
-```
-
-Note: Although it is not shown here, the procedure also includes two extra steps to remove particles that are too small and probably just artifacts. 
+<div style="height: 20px"></div>
 
 <br>
-<br>
 
-Summary of the results in a table
-
-Coming soon...
-
-```{r eval=FALSE}
-summary(Cylinders$MajorAxisnm)
-length(Cylinders$MajorAxisnm)
-sd(Cylinders$MajorAxisnm)
-summary(Cylinders$MinorAxisnm)
-length(Cylinders$MinorAxisnm)
-sd(Cylinders$MinorAxisnm)
+## Summary
 
 
+|Model|Shape|MaxAxis|MinAxis|Centre-Centre|Status|
+|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|
+|A|Circles|700 nm|NA|Auto|Done|
+|B|Circles|820 nm|NA|Auto|Done|
+|C|Circles|1000 nm|NA|Auto|Done|
+|1|Circles|500 nm|NA|Auto|Pending|
+|2|Circles|700 nm|NA|710 nm| same as A?|
+|3|Circles|700 nm|NA|900 nm|Pending|
+|4|Ellipses|820 nm| 500 nm|850 nm|Pending|
+
+* Particle size: Model A, B, C and 1 will explain broad band reflectance
+
+* Particle Separation: Compare model 2 and 3 identify the contribution of the chitin matrix
+
+* Particle shape: Compare model 4,1, and B to identify the contribution of the shape
 
 
-summary(Centroids$Euclideannm)
-sd(Centroids$Euclideannm)
-length(Centroids$Euclideannm)
-
-
-```
-
-<br> 
-<br>
-
-## Cylinder diameters
-
-```{r}
-
-Cylinders <- 
-  Cylinders %>% 
-  mutate(MajorAxisnm = MajorAxis * 1000, # from microns to nm
-         MinorAxisnm = MinorAxis * 1000) # from microns to nm
-
-# Prepare for the plot
-HistAxis<-
-  Cylinders %>% 
-  select (MajorAxisnm, MinorAxisnm ) %>% 
-  gather (Axis, Length) 
-
-# Plot
-ggplot(HistAxis, aes(x=Length, fill=Axis, color=Axis))+
-  geom_histogram(fill="gray", alpha=0.3, 
-                 position="identity", binwidth=25)+
-  theme_bw()+
-  theme(legend.position="top")+
-  ylab("Counts")+
-  xlab("Cylinder Diameter (nm)")+ 
-  theme(legend.position = c(0.8,0.5))+
-  theme(legend.title = element_blank())+
-  theme(legend.text = element_text(size=7))+
-  scale_color_manual(labels = c("Major axis", "Minor axis"),
-                     values=c("#8dbb53", "#b39eff")) +
-  theme(legend.key.size = unit(0.4, 'cm'))
-
-```
-
-## Centroid distances
-
-The software provides the centroid distances as the x and y position in the image for each particle, in micrometers. To calculate the centre to centre distance, it is necesary to use the formula for euclidian distances
-
-```{r}
-
-Centroids <- 
-  Centroids %>% 
-  # Calculate euclidean distance:
-  mutate(Euclidean = sqrt(((x1-x)^2)+((y2-y)^2))) %>% 
-  # convert from microns to nm
-  mutate(Euclideannm = Euclidean * 1000)
-
-# Plot:
-ggplot(Centroids, aes(x=Euclideannm))+
-  geom_histogram( color="#ffd781" ,fill="#ffd781", alpha=0.3,
-                  position="identity",binwidth=50)+
-  theme_bw()+
-  theme(legend.position="top")+
-  ylab("Counts")+
-  xlab("Centre - Centre Distance (nm)")+ 
-  theme(legend.position = c(0.8,0.5))+
-  theme(legend.title = element_blank())+
-  theme(legend.text = element_text(size=6))
-
-```
-
-## Circularity
-
-This parameter indicates how circular are the particles. When the circularity is closer to 1, this means that the relationship between area and perimeter is close to 1, so the particle has a regular perimeter
-
-```{r}
-
-# Plot:
-ggplot(Cylinders, aes(x=circ.)) +
-  geom_histogram( color="#0e0928" ,fill="#93c7ff", alpha=0.5,
-                  position="identity")+
-  theme_bw()+
-  theme(legend.position="top")+
-  ylab("Counts")+
-  xlab("Circularity (4π*area/perimeter^2)")+ 
-  scale_x_continuous(breaks=seq(0,1,0.2))+
-  theme(legend.position = c(0.8,0.5))+
-  theme(legend.title = element_blank())+
-  theme(legend.text = element_text(size=6))
-
-```
-
-## Aspect ratio
-
-Major Axis/minor Axis
-
-If this value is far away from 1, it means that the elipse is flattened. if close to 1, it means that the elypse is close to a circle.
-
-```{r}
-
-# Plot:
-ggplot(Cylinders, aes(x=AR)) +
-  geom_histogram( color="#0e0928" ,fill="#93c7ff", alpha=0.5,
-                  position="identity")+
-  theme_bw()+
-  theme(legend.position="top")+
-  ylab("Counts")+
-  xlab("Aspect Ratio (Major Axis/Minor Axis")+ 
-  theme(legend.position = c(0.8,0.5))+
-  theme(legend.title = element_blank())+
-  theme(legend.text = element_text(size=6))
-
-```
-
-## Angle
-
-This parameter indicates varies between 0-180 degrees, and it is the angle between the primary axis and a line parallel to the x-axis of the image.
-
-```{r}
-
-# Plot:
-ggplot(Cylinders, aes(x=angle)) +
-  geom_histogram( color="#0e0928" ,fill="#93c7ff", alpha=0.5,
-                  position="identity")+
-  theme_bw()+
-  theme(legend.position="top")+
-  ylab("Counts")+
-  xlab("Angle (elypse axis to the image x axis)")+ 
-  scale_x_continuous(breaks=seq(0,180,20))+
-  theme(legend.position = c(0.8,0.5))+
-  theme(legend.title = element_blank())+
-  theme(legend.text = element_text(size=6))
-
-```
-
-## Correlations
-
-We evaluated the correlation between the centre to centre distance and the diameter
-
-First we need to create unique codes for the particles including the TEM number \_ the rectangle number \_ the ROI number.
-
-In this way, we can combine the two data frames, cylinders diameter and centre to centre distance. Thus, for each particle we will obtain its diameter and its centre-to-centre distance to *one* of its adjacent particles.
-
-```{r message=FALSE, warning=FALSE}
-
-Cylinders2 <-
-  Cylinders %>% 
-  unite("ROICode",c("section","rectangle","ROI")) %>% 
-  select(ROICode,MajorAxisnm,MinorAxisnm)
-
-Centroids2 <-
-  Centroids %>%
-  mutate(label2 = substr(label,16,18)) %>% 
-  unite("ROICode",c("label2","ROI"),remove=FALSE) %>% 
-  unite("ROICompCode",c("label2","ROIcomp"),remove=FALSE) %>% 
-  select(ROICode,ROICompCode,Euclideannm) %>% 
-  # order:
-  arrange(ROICompCode) %>% 
-  #remove particles that do not have diameter info:
-  filter(ROICompCode!="1_4_17") 
-
-StructStats <- 
-  Cylinders2 %>% 
-  # select the ROIs for which we have the centroid distances:
-  filter (ROICode  %in% (Centroids2$ROICompCode)) %>% 
-  # order:
-  arrange(ROICode) %>% 
-  # Join data frames: cylinders with Centroids 
-  bind_cols(.,Centroids2) %>% 
-  select(-ROICode...1) %>% 
-  rename(AdjROI = ROICode...4) %>% 
-  select(4,1,2,3,5) %>% 
-  filter(MajorAxisnm<1400)
-
-head(StructStats)
-```
-
-In this data frame, the first column is the label of the particles (i.e. transversal section of a cylinder in the white underlay of X. eucalypti) that we are studying. Second column and third column are the diameter. Since the particles are an elypse, we kept the major and minor axis. Column 4 is the the label of a particle adjacent to the particle in column 1. Column 5 is the centre to centre distance between these two particles.
-
-Now we can test if the diameter of the particle correlates to the centre to centre distance.
-
-```{r}
-cor.test(StructStats$MajorAxisnm,StructStats$Euclideannm)
-
-ggplot(StructStats, aes(x = Euclideannm))+
-  geom_point(aes(x = Euclideannm,y = MajorAxisnm),
-             size=3, alpha=0.5,pch=21,
-             col="black",fill="#93c7ff")+
-  geom_point(aes(x = Euclideannm,y = MinorAxisnm),
-             size=3, alpha=0.5,pch=21,
-             col="black",fill="#f8f813")+
-  theme_bw()+
-  xlab("Centre-centre distance (nm)")+
-  ylab("Diameter of particles (nm)")+
-  scale_x_continuous(breaks=seq(500,1500,200))+
-  scale_y_continuous(breaks=seq(400,1400,200))+
-  geom_hline(yintercept=mean(StructStats$MajorAxisnm), 
-             linetype="dashed", color = "#0e0928")+
-  geom_hline(yintercept=mean(StructStats$MinorAxisnm), 
-             linetype="dashed", color = "#abab0d")
-  
-```
-
-Blue = major axis and yellow = minor axis

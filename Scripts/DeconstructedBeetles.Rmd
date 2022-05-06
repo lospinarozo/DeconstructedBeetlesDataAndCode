@@ -673,27 +673,7 @@ plot_grid(M1P, M2P,
 
 ```
 
-<div style="height: 20px"></div>
-
-<br>
-
-## Summary
 
 
-|Model|Shape|MaxAxis|MinAxis|Centre-Centre|Status|
-|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|
-|A|Circles|700 nm|NA|Auto|Done|
-|B|Circles|820 nm|NA|Auto|Done|
-|C|Circles|1000 nm|NA|Auto|Done|
-|1|Circles|500 nm|NA|Auto|Pending|
-|2|Circles|700 nm|NA|710 nm| same as A?|
-|3|Circles|700 nm|NA|900 nm|Pending|
-|4|Ellipses|820 nm| 500 nm|850 nm|Pending|
-
-* Particle size: Model A, B, C and 1 will explain broad band reflectance
-
-* Particle Separation: Compare model 2 and 3 identify the contribution of the chitin matrix
-
-* Particle shape: Compare model 4,1, and B to identify the contribution of the shape
 
 

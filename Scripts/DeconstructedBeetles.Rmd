@@ -1,6 +1,6 @@
 ---
-title: "DeconstructedBeetlesCode"
-author: "Laura Ospina-Rozo"
+title: "Deconstructed Beetles Original Code"
+author: "Authors removed for double blind review"
 date: "16/02/2022"
 output:
   html_document: 
@@ -8,7 +8,7 @@ output:
     toc_float: yes
     toc_depth: 5
     highlight: kate
-    theme: readable
+    theme: paper
     self_contained: yes
     mode: selfcontained
     code_folding: hide
@@ -21,6 +21,22 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Introduction
+
+
+In this file we provide the code used for the analysis of the data from the paper "Deconstructed beetles: green composite materials with potential for passive cooling due to high near-infrared reflectivity". 
+
+In our manuscript, we describe the optical properties and underlying structures that produce very high near-infrared reflectance in three species of green scarab beetles _Xylonichus eucalypti_, _Anoplognathus prasinus_ and _Paraschizognathus olivaceus_. Although the chiral structures in scarabs have been well described in previous literature, we have limited knowledge of the natural mechanisms to manipulate near-infrared light (NIR; 700 – 1700 nm). In addition, previous studies in light manipulation by the beetle elytra have been focused mainly on the cuticle. Thus, our aim was to explore if other elements in the elytra can contribute to their characteristic visible and NIR reflectance. 
+
+
+```{r echo=FALSE, fig.cap="Three green scarabs with High NIR reflectance", out.width = '60%', out.height='50%'}
+knitr::include_graphics("../Images/GreenBeetles.JPG")
+```
+
+The original .Rmd file and raw data can be accessed here: https://bit.ly/3bmwGC4 (This link contains information that may disclose author’s identity)
+
+
+
+# Setting up
 
 Libraries
 
@@ -55,13 +71,7 @@ Trans<-read.csv("../Data/2_Transmittance.csv") %>%
   procspec(.,fixneg = "zero")
 
 
-RefVis<-read.csv("../Data/3_ReflectanceVisModels.csv") %>% 
-  as.rspec(.) %>% 
-  procspec(.,fixneg = "zero") %>% 
-  aggspec(., by=4) %>% 
-  filter(wl <=700 & wl>=300) 
-
-Transmicro <- read.csv("../Data/4_TransmittanceMicroScale.csv")
+Transmicro <- read.csv("../Data/3_TransmittanceMicroScale.csv")
 
 Cylinders <- read.csv("../Data/4_XylonichusCylinderDiameters.csv")
 
@@ -71,11 +81,13 @@ QuasiOrder <-  read.csv("../Data/6_PrumModelResults.csv")
 
 Ordered <-  read.csv("../Data/7_PhotonicCrystalModelResults.csv")
 
+Scenarios <- read.csv("../Data/8_PhotonicCrystalScenarios.csv")
+
 ```
 
-# Macro Scale
+# Optical properties (macro)
 
-Comparison between the optical properties at a macro scale for the three beetles
+Comparison between the optical properties at a macro scale for the three beetles. (Figure 2 in the manuscript)
 
 ```{r}
 
@@ -171,7 +183,7 @@ P_Ocul<-ggplot() +
 
 ```
 
-```{r out.width = "75%"}
+```{r fig.width = 4, fig.height = 5}
 
 # Align the three plots:
 plot_grid(P_Prsi, P_Xyln, P_Ocul, 
@@ -182,9 +194,21 @@ Yellow = Reflectance grey = Transmittance (inverted axis) blue = Absorbance
 
 <br> <br>
 
-# Transmittance Scatterometer
 
-The three beetles have very similar transmittance profile in their cuticle.
+# Elytra Architecture
+
+We observed the cross section of the beetle elytra with SEM (Figure 3). Images were analyzed with the software ImageJ. Results from these measurements are in Data/OtherSoftware and in table 1 of the manuscript.
+
+
+# Scatterometry
+
+## Reflectance
+
+We measured the reflectanc eof the composite material (cuticle + white underlay) in two configurations (dorsal and ventral). Data analyzed with a costumized code in MatLab. Raw files in the folder Data/OtherSoftware. (Figure 4 in the manuscript top and middle row)
+
+## Transmittance 
+
+The three beetles have very similar transmittance profile in their cuticle. (Figure 4 bottom row)
 
 ```{r}
 # Prepare for plot
@@ -193,7 +217,7 @@ Transmicro<-
   mutate(across(spp, factor, levels=c("A.pras","X.euca","P.ocul")))
 ```
 
-```{r out.height="60%"}
+```{r fig.width = 7, fig.height = 4}
 # plot
 ggplot(data=Transmicro, aes(wl,Transm,spp))+
   geom_line()+
@@ -208,7 +232,9 @@ ggplot(data=Transmicro, aes(wl,Transm,spp))+
 
 <br> <br>
 
-# Statistical Descriptors
+# Nanostructures
+
+Morphological analysis: Statistical Descriptors of the particles in the white underlay of _Xylonichus eucalypti_
 
 ## Calculations
 
@@ -224,7 +250,7 @@ Cylinders <-
 # Prepare for the plot
 HistAxis<-
   Cylinders %>% 
-  select (MajorAxisnm, MinorAxisnm ) %>% 
+  dplyr::select (MajorAxisnm, MinorAxisnm ) %>% 
   gather (Axis, Length) 
 
 # Plot
@@ -239,12 +265,22 @@ ggplot(HistAxis, aes(x=Length, fill=Axis, color=Axis))+
   theme(legend.title = element_blank())+
   theme(legend.text = element_text(size=7))+
   scale_color_manual(labels = c("Major axis", "Minor axis"),
-                     values=c("#8dbb53", "#b39eff")) +
+                     values=c("#ffd781", "#93c7ff")) +
   theme(legend.key.size = unit(0.4, 'cm'))
 
 ```
 
-### Centroid distances
+Span of the diameters:
+```{r}
+
+quantile(Cylinders$MajorAxisnm, c(0.05,0.95))
+
+quantile(Cylinders$MinorAxisnm, c(0.05,0.95))
+
+```
+
+
+### Centre-to-centre distances
 
 The software provides the centroid distances as the x and y position in the image for each particle, in micrometers. To calculate the centre to centre distance, it is necesary to use the formula for euclidian distances
 
@@ -348,14 +384,14 @@ In this way, we can combine the two data frames, cylinders diameter and centre t
 Cylinders2 <-
   Cylinders %>% 
   unite("ROICode",c("section","rectangle","ROI")) %>% 
-  select(ROICode,MajorAxisnm,MinorAxisnm)
+  dplyr::select(ROICode,MajorAxisnm,MinorAxisnm)
 
 Centroids2 <-
   Centroids %>%
   mutate(label2 = substr(label,16,18)) %>% 
   unite("ROICode",c("label2","ROI"),remove=FALSE) %>% 
   unite("ROICompCode",c("label2","ROIcomp"),remove=FALSE) %>% 
-  select(ROICode,ROICompCode,Euclideannm) %>% 
+  dplyr::select(ROICode,ROICompCode,Euclideannm) %>% 
   # order:
   arrange(ROICompCode) %>% 
   #remove particles that do not have diameter info:
@@ -369,9 +405,9 @@ StructStats <-
   arrange(ROICode) %>% 
   # Join data frames: cylinders with Centroids 
   bind_cols(.,Centroids2) %>% 
-  select(-ROICode...1) %>% 
+  dplyr::select(-ROICode...1) %>% 
   rename(AdjROI = ROICode...4) %>% 
-  select(4,1,2,3,5) %>% 
+  dplyr::select(4,1,2,3,5) %>% 
   filter(MajorAxisnm<1400)
 
 head(StructStats)
@@ -383,6 +419,8 @@ Now we can test if the diameter of the particle correlates to the centre to cent
 
 ```{r}
 cor.test(StructStats$MajorAxisnm,StructStats$Euclideannm)
+
+cor.test(StructStats$MinorAxisnm,StructStats$Euclideannm)
 
 ggplot(StructStats, aes(x = Euclideannm))+
   geom_point(aes(x = Euclideannm,y = MajorAxisnm),
@@ -405,7 +443,7 @@ ggplot(StructStats, aes(x = Euclideannm))+
 
 Blue = major axis and yellow = minor axis
 
-One last test, can the sum of the dimeter/2 of two adjacent particles explain its centre to centre distance? 
+We can also test if the sum of the dimeter/2 of two adjacent particles explain its centre to centre distance? 
 
 ```{r}
 SubCylind <-
@@ -452,7 +490,7 @@ ggplot(StructStats, aes(x = Euclideannm))+
 ## Results
 
 
-Table with the statistical descriptors of the cylinders in the Xylonichus white underlay structures
+Statistical descriptors of the cylinders in the _X. eucalypti_ white underlay structures (Table 2)
 
 <br>
 <br>
@@ -507,6 +545,10 @@ length(Angs3)),2)
 <br> 
 <br>
 
+Table 2 in the manuscript: 
+
+<br>
+
 |Parameter|Mean|sd|25% quantile|75% quantile|n|
 |:-----------:|:---------:|:---------:|:---------:|:---------:|:---------:|
 |Ellipse Major axis |`r maxA[1]`|`r maxA[2]`|  `r maxA[3]`  |`r maxA[4]`|`r maxA[5]`|
@@ -530,18 +572,19 @@ length(Angs3)),2)
 <br>
 <br>
 
+
 ## Procedure 
 
-This is a short description of the procedure I used to extract the centre to centre distance and the diameter of the transversal section of the cylinders from the TEM images
+This is a short description of the procedure used in Fiji/ImajeJ to extract the centre to centre distance and the diameter of the transversal section of the cylinders from the TEM images
 
-Here I refer as "particle" to the circle correspondent to a transversal section of a cylinder in the structure. Cylinders are filled with air and surrounded by a matrix of chitin. 
+Here we refer as "particle" to the circle correspondent to a transversal section of a cylinder in the structure. Cylinders are filled with air and surrounded by a matrix of chitin. 
 
 
 ```{r echo=FALSE, fig.cap="One rectangle of one TEM section", out.width = '50%', out.height='40%'}
 knitr::include_graphics("../Images/TEMexample.JPG")
 ```
 
-Then, we used the plugin Analyze particles in Image J to obtain  statistical descriptors for the shapes of the transversal sections of the cylinders. 
+Then, we used the plugin Analyze particles in Fiji/Image J to obtain  statistical descriptors for the shapes of the transversal sections of the cylinders. 
 
 To do this we convert the image to black and white, then apply a threshold: 
 
@@ -555,7 +598,7 @@ Then, the plugin assigns a number to each particle, fits an ellipse to each part
 knitr::include_graphics("../Images/ParticlesExample.JPG")
 ```
 
-Note: Although it is not shown here, the procedure also includes two extra steps to remove particles that are too small and probably just artifacts. 
+Note: The procedure also includes two extra steps to remove particles that are too small and probably just artifacts (not shown here for brevity). 
 
 <br>
 
@@ -564,11 +607,12 @@ Note: Although it is not shown here, the procedure also includes two extra steps
 
 # Models
 
-## Current
+## Photonic crystal
 
-Photonic crystal
+We simplified the structure into parallel cylinders with circular cross-section, and analysed its interaction with light of different wavelengths and polarizations using the Finite Element Method (FEM) as implemented in COMSOL Multiphysics
 
-We are comparing models in which the cylinders transversal section is a circle of diameter 700, 820 and 1000 nm in two polariations: incident light polarized parallel (continuous) and perpendicular (dashed) to the cylinder axis
+
+We compared models in which the cylinders transversal section is a circle of diameter 700, 820 and 1000 nm in two polarizations: incident light polarized parallel (continuous) and perpendicular (dashed) to the cylinder axis
 
 ```{r}
 
@@ -602,7 +646,7 @@ COLORS <- c("ParallP0700nm" = "#c4a922",
             "PerpenP1000nm" = "grey")
 
 
-M1P <- ggplot(OrderModel, aes(x=wl, y = Reflectance, 
+ggplot(OrderModel, aes(x=wl, y = Reflectance, 
                        linetype = factor(mod), color=mod))+
   geom_line(size=0.8)+
   theme_bw() + 
@@ -618,33 +662,360 @@ M1P <- ggplot(OrderModel, aes(x=wl, y = Reflectance,
 
 ```
 
-Quasi-ordered model
+### Different Scenarios
 
-The plot shows the probability of reflectance of light inciding perpendicular to the cylinder axis 
+In the data set scenarios the names of the columns consist on the description of each scenario as follow: 
+
+First 4 characters: Reflectance or transmittance. Since we did not include any loses in the models, these two parameters are inverse.
+
+Following 4 characters: A + 3 numbers. This is the radius of the particle in nm (i.e. of the transversal section of a cylinder), assuming the particles are circles (not ellipses)
+
+Following 4 characters: P + 3 numbers. This is the centre to centre distance between two particles in nm.
+
+Following 4 characters: Indicates the polarization, X polarization is perpendicular to the cylinders and z polarization is parallel to them. 
+
+The final letter refers to the light incidence, whether the measurement was done normal (N) or off normal (O). The off normal measurement was done at 30 degrees angle.
+
+#### Setting up
+
+We used different data frames to explore the effect of the variability on each parameter
+
+*Particle Size*
+
+```{r}
+# Focus on different particle size keeping the other variables constant
+Particle <- 
+  Scenarios %>% 
+  dplyr::select(wl, contains ("Refl")) %>% # select reflectance
+  dplyr::select(wl, contains ("lN")) %>% # normal incidence
+  dplyr::select(wl, contains ("P868")) # At fixed distance 868 nm
+
+# Re-arrange: each column is one variable, each row one observation
+toplotParticle <-
+  Particle %>% 
+  gather (name, Reflectance, -wl) %>% 
+  mutate (polarization = substr(name,13,16)) %>% 
+  mutate (sizeQ = substr(name,5,8)) %>% 
+  dplyr::select (1,4,5,3) 
+
+# X polarization
+tplotParx <-
+  toplotParticle %>% 
+  dplyr::filter (polarization == "Xpol") %>% 
+  dplyr::select (wl,sizeQ,Reflectance)
+
+#z polarization
+tplotParz <-
+  toplotParticle %>% 
+  dplyr::filter (polarization == "Zpol") %>% 
+  dplyr::select (1,3,4)
+  
+
+```
+
+*Spacing*
+
+```{r}
+
+# Focus on different spacing keeping the other variables constant
+Spacing <- 
+  Scenarios %>% 
+  dplyr::select(wl, contains ("Refl")) %>% # select reflectance
+  dplyr::select(wl, contains ("lN")) %>% # normal incidence
+  dplyr::select(wl, contains ("A330")) # At fixed diameter 330 nm
+
+# Re-arrange: each column is one variable, each row one observation
+tplotSpac <-
+  Spacing %>% 
+  gather (name, Reflectance, -wl) %>% 
+  mutate (polarization = substr(name,13,16)) %>% 
+  mutate (spacingQ = substr(name,9,12)) %>% 
+  dplyr::select (1,4,5,3) 
+
+# Consider only the z-polarization for visualization purposes
+tplotSpacz <-
+  tplotSpac %>% 
+  filter (polarization == "Zpol") %>% 
+  dplyr::select (1,3,4)
+
+
+```
+
+
+*Polarization*
+
+```{r}
+
+# Focus on different polarizations keeping the other variables constant
+tplotpol <- 
+  tplotSpac %>% #normal incidence and fixed diameter 330 nm
+  filter (spacingQ == "P868") %>% # spacing at 868 nm 
+  dplyr::select (1,2,4)
+```
+
+
+*Angle*
+
+```{r}
+
+# Focus on different angle of incidence keeping the other variables constant
+AngleR <- 
+  Scenarios %>% 
+  dplyr::select(wl, contains ("Refl")) %>% # select reflectance
+  dplyr::select(wl, contains ("A330")) %>% # radius 330 nm
+  dplyr::select(wl, contains ("P868")) %>% # At fixed distance 868 nm
+  dplyr::select(wl, contains("Zpol")) # only z polarization
+
+# Re-arrange: each column is one variable, each row one observation
+toplotAngle <-
+  AngleR %>% 
+  gather (name, Reflectance, -wl) %>% 
+  mutate (Angle = substr(name,17,17)) %>% 
+  dplyr::select (1,3,4) 
+
+```
+
+
+*Average*
+
+```{r}
+
+
+toplotAvg <-
+  Scenarios %>% 
+  dplyr::select(wl, contains ("Refl")) %>% # select reflectance
+  dplyr::select(wl, contains ("lN")) %>%  # normal incidence  
+  mutate(AvgReflxpol =
+           rowMeans(.[,c(2,4,6,8,10)])) %>% 
+  mutate(AvgReflzpol =
+           rowMeans(.[,c(3,5,7,9,11)])) %>% 
+  dplyr::select(wl,AvgReflxpol, AvgReflzpol)
+
+
+
+```
+
+
+#### 4 pannels
+
+Here we display the effect of the different scenarios: Particle size, centre-to-centre distance, polarization and angle
+(Figure 5 in the manuscript). 
+
+We first create each of the 4 figures separately:
+
+Particle
+```{r}
+S1 <- ggplot(data= tplotParz[tplotParz$sizeQ!="A330",], aes(x=wl,y=Reflectance)) +
+  geom_line(aes(col=sizeQ, group=sizeQ, linetype= sizeQ))+
+  scale_color_manual(values=c("#93c7ff","black"),                          
+                     labels=c("301nm  ","366nm  ")) +
+  scale_linetype_manual(values=c(1,1), 
+                        labels=c("301nm  ","366nm  ")) +
+  theme_test() +
+  theme(legend.position = c(0.86, 0.7),
+        legend.title= element_blank(),
+        legend.key.size = unit(0.2, 'cm'),
+        legend.spacing.y = unit(0, "mm"),
+        legend.background = element_blank(),
+        legend.text=element_text(size=6.5),
+        legend.key.height = unit(0.3, 'cm'), #change legend key height
+        legend.key.width = unit(0.4, 'cm')) +#change legend key width
+  scale_y_continuous(breaks=c(0,0.5,1)) +
+  theme(axis.title.x=element_blank())+
+  scale_x_continuous(breaks=c(400,800, 1200,1600))+
+  theme(axis.title.y = element_text(margin=margin(r=10)))+
+  ylab("Reflectance (fraction)") +
+  theme(plot.margin = unit(c(0.5,0.1,0.05,0.3), "cm"))
+
+```
+
+Spacing
+```{r}
+
+S2 <- ggplot(data= tplotSpacz[tplotSpacz$spacingQ!="P868",], aes(x=wl,y=Reflectance)) +
+  geom_line(aes(col=spacingQ, group=spacingQ, linetype=spacingQ))+
+  scale_color_manual(values=c("#93c7ff","black"),                          
+                     labels=c("732nm  ","967nm  ")) +
+  scale_linetype_manual(values=c(1,1), 
+                        labels=c("732nm  ","967nm  ")) +
+  theme_test() +
+  theme(legend.position = c(0.86, 0.7),
+        legend.title= element_blank(),
+        legend.key.size = unit(0.2, 'cm'),
+        legend.spacing.y = unit(0, "mm"),
+        legend.background = element_blank(),
+        legend.text=element_text(size=6.5),
+        legend.key.height = unit(0.3, 'cm'), #change legend key height
+        legend.key.width = unit(0.4, 'cm')) + #change legend key width
+  scale_y_continuous(breaks=c(0,0.5,1)) +
+  theme(axis.title.x=element_blank(),
+        axis.title.y=element_blank())+
+  scale_x_continuous(breaks=c(400,800, 1200,1600)) +
+  theme(plot.margin = unit(c(0.5,0.1,0.05,0.1), "cm"))
+
+ 
+```
+
+Polarizations
+
+```{r}
+S3 <- ggplot(data= tplotpol, aes(x=wl,y=Reflectance)) +
+  geom_line(aes(col=polarization, 
+                group=polarization,
+                linetype=polarization)) +
+  scale_color_manual(values=c("#93c7ff","black"),                          
+                     labels=c("x pol  ","z pol  ")) +
+  scale_linetype_manual(values=c(1,1), 
+                        labels=c("x pol  ","z pol  ")) +
+  theme_test() +
+  theme(legend.position = c(0.86, 0.7),
+        legend.title= element_blank(),
+        legend.key.size = unit(0.2, 'cm'),
+        legend.spacing.y = unit(0, "mm"),
+        legend.background = element_blank(),
+        legend.text=element_text(size=6.5),
+        legend.key.height = unit(0.3, 'cm'), #change legend key height
+        legend.key.width = unit(0.4, 'cm'))+#change legend key width
+scale_y_continuous(breaks=c(0,0.5,1)) +
+theme(axis.title.y = element_text(margin=margin(r=10)))+
+scale_x_continuous(breaks=c(400,800, 1200,1600))+
+  xlab("wavelength (nm)")+
+  ylab("Reflectance (fraction)")+
+  theme(plot.margin = unit(c(0.1,0.1,0.05,0.3), "cm"))
+
+  
+```
+
+Angle
+
+```{r}
+
+S4 <- ggplot(data= toplotAngle, aes(x=wl,y=Reflectance))+
+  geom_line(aes(col=Angle, 
+                group=Angle,
+                linetype=Angle)) +
+  scale_color_manual(values=c("black","#93c7ff"),                          
+                     labels=c("Norm  ","30 deg  ")) +
+  scale_linetype_manual(values=c(1,1), 
+                        labels=c("Norm  ","30 deg  ")) +
+  theme_test() +
+  theme(legend.position = c(0.86, 0.7),
+        legend.title= element_blank(),
+        legend.key.size = unit(0.2, 'cm'),
+        legend.spacing.y = unit(0, "mm"),
+        legend.background = element_blank(),
+        legend.text=element_text(size=6.5),
+        legend.key.height = unit(0.3, 'cm'), #change legend key height
+        legend.key.width = unit(0.4, 'cm')) + #change legend key width
+scale_y_continuous(breaks=c(0,0.5,1)) +
+ theme(axis.title.y=element_blank())+
+  scale_x_continuous(breaks=c(400,800, 1200,1600)) +
+  xlab("wavelength (nm)") +
+  theme(plot.margin = unit(c(0.1,0.1,0.05,0.1), "cm"))
+```
+
+
+Then join them together to compare:
+
+```{r}
+
+plot_grid(S1, S2, S3, S4,
+          align = "hv", nrow=2, ncol=2, rel_widths = c(1,1), 
+          scale = 1, vjust=0.5)
+```
+
+
+### Combined scenarios
+
+
+Multiple scenarios can occur at the same time.
+
+We wanted to recreate the general trend for the additive effects of these scenarios. Thus, we obtained weighted averages for different polarization and different angle. (Figure 8 in the supplementary materials)
+
+This means we averaged all the models with normal incidence and different particle size and spacing by polarization. And we obtained a data frame with the two polarizations in the two different angles of incidence
+
+```{r}
+# Average per polarization and angle
+WSc <- 
+  Scenarios %>% 
+  dplyr::select(wl, contains ("Refl")) %>%  # select reflectance
+  mutate(xpolNorm = rowMeans(
+    dplyr::select(.,ends_with ("XpolN")), na.rm = TRUE)) %>% # average x pol Norm
+  mutate(zpolNorm = rowMeans(
+    dplyr::select(.,ends_with ("ZpolN")), na.rm = TRUE)) %>% # average z pol Norm
+  rename(zpol30 = ReflA330P868ZpolO) %>% 
+  rename(xpol30 = ReflA330P868XpolO) %>% 
+  dplyr::select(1,12,13,14,15)
+
+head(WSc)
+
+# Arrange for plotting
+toplotWSc <-
+  WSc %>% 
+  gather (Lightcondition, Reflectance, -wl)
+
+# Find the weighted mean
+Avvline <- 
+  WSc %>% 
+  mutate(All = rowMeans(WSc[2:5])) %>% 
+  mutate(xpol = rowMeans(WSc[c(2,4)])) %>% 
+  mutate(zpol = rowMeans(WSc[c(3,5)])) %>% 
+  dplyr::select(1,6,7,8)
+
+head(Avvline)
+
+```
+
+```{r}
+ggplot()+
+  geom_line(data= toplotWSc, aes(x=wl,y=Reflectance, 
+                            group= Lightcondition, color=Lightcondition,
+                            linetype=Lightcondition)) +
+  scale_linetype_manual(values=c("longdash","solid","longdash", "solid"))+
+  scale_color_manual(values=c("#93c7ff","#93c7ff","grey","grey"))+
+  
+ # geom_line(data=Avvline, aes(x=wl, y=zpol), lwd=1.3, col="black")+
+  
+#  geom_line(data=Avvline, aes(x=wl, y=xpol), lwd=1.3, col="blue")+
+  
+  geom_line(data=Avvline, aes(x=wl, y=All), lwd=1.3, col="black")+
+  
+  theme_bw()+
+  ylab ("Standardized Reflectance") +
+  xlab("Wavelength (nm)") 
+  
+```
+
+
+
+
+## Quasi-ordered model
+
+The plot shows the probability of reflectance of light inciding perpendicular to the cylinder axis.  (Supplementary materials 9)
 
 ```{r}
 
 PlotM1 <- 
   QuasiOrder %>% 
-  mutate(., MeanS1 = rowMeans(select(., starts_with("Xyln1."))),
-         ., MeanS2 = rowMeans(select(., starts_with("Xyln2."))),
-         ., MeanS3 = rowMeans(select(., starts_with("Xyln3."))),
-         ., MeanS4 = rowMeans(select(., starts_with("Xyln4."))),
-         ., MeanS5 = rowMeans(select(., starts_with("Xyln5."))),
-         ., MeanS6 = rowMeans(select(., starts_with("Xyln6."))),
-         ., MeanS7 = rowMeans(select(., starts_with("Xyln7."))),
-         ., MeanS8 = rowMeans(select(., starts_with("Xyln8."))),
-         ., MeanS9 = rowMeans(select(., starts_with("Xyln9.")))) %>%
-  select(wl,contains("Mean")) 
+  mutate(., MeanS1 = rowMeans(dplyr::select(., starts_with("Xyln1."))),
+         ., MeanS2 = rowMeans(dplyr::select(., starts_with("Xyln2."))),
+         ., MeanS3 = rowMeans(dplyr::select(., starts_with("Xyln3."))),
+         ., MeanS4 = rowMeans(dplyr::select(., starts_with("Xyln4."))),
+         ., MeanS5 = rowMeans(dplyr::select(., starts_with("Xyln5."))),
+         ., MeanS6 = rowMeans(dplyr::select(., starts_with("Xyln6."))),
+         ., MeanS7 = rowMeans(dplyr::select(., starts_with("Xyln7."))),
+         ., MeanS8 = rowMeans(dplyr::select(., starts_with("Xyln8."))),
+         ., MeanS9 = rowMeans(dplyr::select(., starts_with("Xyln9.")))) %>%
+  dplyr::select(wl,contains("Mean")) 
 
 PlotM1Means <- 
   PlotM1 %>% 
   mutate(Xyl.sd = rowSds(as.matrix(PlotM1[,2:10]))) %>% 
   mutate(Xyl.mean = rowMeans2(as.matrix(PlotM1[,2:10]))) %>% 
-  select(wl,Xyl.sd,Xyl.mean) 
+  dplyr::select(wl,Xyl.sd,Xyl.mean) 
   
 
-M2P <- ggplot(PlotM1Means, aes(x=wl)) +
+ggplot(PlotM1Means, aes(x=wl)) +
   geom_ribbon(aes(y = Xyl.mean*100, 
                   ymin = Xyl.mean*100 - Xyl.sd*100, 
                   ymax = Xyl.mean*100 + Xyl.sd*100, 
@@ -662,18 +1033,3 @@ M2P <- ggplot(PlotM1Means, aes(x=wl)) +
   
 
 ```
-
-Contrast between the two models
-
-```{r warning=FALSE}
-
-plot_grid(M1P, M2P, 
-          align = "v", nrow=2, ncol=1, rel_widths = c(1, 1))
-
-
-```
-
-
-
-
-

@@ -78,7 +78,7 @@ Inside this folder - Scatterometry_MatLab and SEM_Fiji
 
 3. Additional related data collected that was not included in the current data package: 
 
-Inside the folder "OtherSoftware/Scatterometry_MatLab" it is possible to find the results of all our scatterometry measuremnts. This should be open in MATLAB.
+Inside the folder "OtherSoftware/Scatterometry_MatLab" it is possible to find the results of all our scatterometry measuremnts. This should be open in MATLAB. A separated README file was included inside this folder to clarify the abreviations and filenames
 Inside the folder "OtherSoftware/SEM_Fiji" we have placed an excel file with the results of image processing with Fiji imagej
 
 4. Are there multiple versions of the dataset? no
@@ -90,8 +90,8 @@ METHODOLOGICAL INFORMATION
 
 1. Description of methods used for collection/generation of data: 
 
-1_HemisphericalReflectance.csv: Data was obtanied with a dual spectrometer coupled to an integrating sphere to capture the reflectance from 400 to 1700 nm. 
-2_Transmittance.csv: Data was obtanied with a dual spectrometer with the sample placed in between two fibre optics to capture the transmittance. Although the spectrometer allows a measurement from 300nm, we then limited the wavelength range from 400 to 1700 nm to match the reflectance data. 
+1_HemisphericalReflectance.csv: Data was obtained with a dual spectrometer coupled to an integrating sphere to capture the reflectance from 400 to 1700 nm. 
+2_Transmittance.csv: Data was obtained with a dual spectrometer with the sample placed in between two fibre optics to capture the transmittance. Although the spectrometer allows a measurement from 300nm, we then limited the wavelength range from 400 to 1700 nm to match the reflectance data. 
 3_TransmittanceMicroScale.csv: We carefully removed the white underlay and measured the cuticle’s transmittance with the scatterometry set up (see supplementary materials for more information)
 4_XylonichusCylinderDiameters.csv: We processed the TEM images from the white underlay of X. eucalypti with the plug-in ‘Analyze particles’ in Fiji, ImageJ. This plugin allowed us to fit ellipses to the transversal section of the air cylinders and extract basic statistics to describe their shape.
 5_XylonichusCentroidDistance.csv: Based on the previosu file. Using the x and y coordinates provided by the plugin, we were able to calculate the euclidean distance between the centre of two adjacent ellipses. We did this only for a subset of the particles. 
